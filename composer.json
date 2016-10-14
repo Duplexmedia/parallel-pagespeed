@@ -1,0 +1,25 @@
+{
+  "name": "duplexmedia/parallel-pagespeed",
+  "description": "A library for concurrently interacting with the Google PageSpeed API.",
+  "minimum-stability": "stable",
+  "license": "MIT",
+  "authors": [
+    {
+      "name": "Moritz Gunz",
+      "email": "moritz.gunz@duplexmedia.com"
+    },
+    {
+      "name": "Duplexmedia",
+      "email": "mail@duplexmedia.com"
+    }
+  ],
+  "require": {
+    "php": ">=5.5",
+    "guzzlehttp/guzzle": "6.2.2"
+  },
+  "autoload": {
+    "psr-4": {
+      "Duplexmedia\\PageSpeed\\": "src/"
+    }
+  }
+}
