@@ -15,7 +15,7 @@ use Psr\Http\Message\ResponseInterface;
 class Service
 {
     /** @var string the PageSpeed URL. */
-    static $url = 'https://www.googleapis.com/pagespeedonline/v2';
+    static $url = 'https://www.googleapis.com/pagespeedonline/v2/';
 
     /** @var Client the HTTP client. */
     private $client;
@@ -55,7 +55,7 @@ class Service
      */
     public function queryAsync($urls, $locale = 'en_US', $strategy = 'desktop') {
         if (is_string($urls)) {
-            return $this->query([$urls], $locale, $strategy);
+            return $this->queryAsync([$urls], $locale, $strategy);
         }
 
         $strategies = ($strategy == 'both') ?
@@ -63,9 +63,9 @@ class Service
             array($strategy);
 
         $requests = [];
-        foreach ($urls as $url) {
-            foreach ($strategies as $strategy) {
-                $requests[$url][$strategy] = $this->client->getAsync('runPagespeed', [
+        foreach ($strategies as $strategy) {
+            foreach ($urls as $url) {
+                $requests[$strategy][$url] = $this->client->getAsync('runPagespeed', [
                     'query' => [
                         'url' => $url,
                         'locale' => $locale,
@@ -75,25 +75,33 @@ class Service
             }
         }
 
-        return Promise\settle($requests)->then(function ($results) {
-            $finalResults = [];
+        $promises = [];
+        foreach ($requests as $strategy => $reqs) {
+            $promises[$strategy] = Promise\settle($reqs)->then(function ($results) use ($strategy) {
+                $finalResults = [];
 
-            // We get the results as a nested array of the URLs and strategies.
-            // Unfold that and parse the body, if available.
-            foreach ($results as $url => $strategyResults) {
-                foreach ($strategyResults as $strategy => $result) {
+                // We get the results as a nested array of the URLs and strategies.
+                // Unfold that and parse the body, if available.
+                foreach ($results as $url => $result) {
                     $res = new \stdClass();
                     $res->success = $result['state'] == Promise\PromiseInterface::FULFILLED;
-                    if ($res->success) {
-                        /** @var ResponseInterface $response */
-                        $response = $result['value'];
-                        $res->data = json_decode($response->getBody()->getContents(), false);
-                    }
-                    $finalResults[$url][$strategy] = $res;
-                }
-            }
+                    /** @var ResponseInterface $response */
+                    $response = $res->success ? $result['value'] : $result['reason']->getResponse();
+                    $res->data = json_decode($response->getBody()->getContents(), false);
 
-            return $finalResults;
+                    $finalResults[$url] = $res;
+                }
+
+                return $finalResults;
+            });
+        }
+
+        return Promise\settle($promises)->then(function ($results) use ($strategies) {
+            $result = [];
+            foreach ($strategies as $strategy) {
+                $result[$strategy] = $results[$strategy]['value'];
+            }
+            return $result;
         });
     }
 }
