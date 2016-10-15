@@ -65,7 +65,7 @@ class Service
         $requests = [];
         foreach ($strategies as $strategy) {
             foreach ($urls as $url) {
-                $requests[$strategy][$url] = $this->client->getAsync('runPagespeed', [
+                $requests[$url][$strategy] = $this->client->getAsync('runPagespeed', [
                     'query' => [
                         'url' => $url,
                         'locale' => $locale,
@@ -75,31 +75,34 @@ class Service
             }
         }
 
+        // If Guzzle\Promises supported nested arrays for Promise\settle
+        // those two blocks wouldn't be necessary. :(
+
         $promises = [];
-        foreach ($requests as $strategy => $reqs) {
-            $promises[$strategy] = Promise\settle($reqs)->then(function ($results) use ($strategy) {
+        foreach ($requests as $url => $reqs) {
+            $promises[$url] = Promise\settle($reqs)->then(function ($results) {
                 $finalResults = [];
 
                 // We get the results as a nested array of the URLs and strategies.
                 // Unfold that and parse the body, if available.
-                foreach ($results as $url => $result) {
+                foreach ($results as $strategy => $result) {
                     $res = new \stdClass();
                     $res->success = $result['state'] == Promise\PromiseInterface::FULFILLED;
                     /** @var ResponseInterface $response */
                     $response = $res->success ? $result['value'] : $result['reason']->getResponse();
                     $res->data = json_decode($response->getBody()->getContents(), false);
 
-                    $finalResults[$url] = $res;
+                    $finalResults[$strategy] = $res;
                 }
 
                 return $finalResults;
             });
         }
 
-        return Promise\settle($promises)->then(function ($results) use ($strategies) {
+        return Promise\settle($promises)->then(function ($results) use ($urls) {
             $result = [];
-            foreach ($strategies as $strategy) {
-                $result[$strategy] = $results[$strategy]['value'];
+            foreach ($urls as $url) {
+                $result[$url] = $results[$url]['value'];
             }
             return $result;
         });
