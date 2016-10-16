@@ -23,7 +23,7 @@ class Service
     /**
      * Constructs a new parallel PageSpeed service.
      *
-     * @param int $timeout_secs the timeout in seconds.
+     * @param int $timeout_secs the timeout in seconds. Pass 0 for disabling the timeout.
      */
     public function __construct($timeout_secs = 0) {
         $this->client = new Client([
