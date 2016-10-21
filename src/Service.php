@@ -3,6 +3,8 @@
 namespace Duplexmedia\PageSpeed;
 
 use GuzzleHttp\Client;
+use GuzzleHttp\HandlerStack;
+use GuzzleHttp\Handler\CurlMultiHandler;
 use GuzzleHttp\Promise;
 use Psr\Http\Message\ResponseInterface;
 
@@ -27,8 +29,9 @@ class Service
      */
     public function __construct($timeout_secs = 0) {
         $this->client = new Client([
-            'base_uri' => Service::$url,
             'allow_redirects' => true,
+            'base_uri' => Service::$url,
+            'handler' => HandlerStack::create(new CurlMultiHandler()),
             'timeout' => $timeout_secs
         ]);
     }
